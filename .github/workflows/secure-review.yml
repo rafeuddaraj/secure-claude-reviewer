@@ -1,0 +1,49 @@
+name: Secure AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout base workflow repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch PR diff
+        run: |
+          curl -L \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3.diff" \
+            "${{ github.event.pull_request.url }}" \
+            > pr.diff
+
+      - name: Export diff
+        run: |
+          {
+            echo "PR_DIFF<<EOF"
+            cat pr.diff
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Run secure reviewer
+        run: npx tsx src/github.ts
