@@ -10,6 +10,7 @@ type ReviewInput = {
   source: "local-cli" | "github-action";
 };
 
+//  এইটা মূলত লিখবো যখন Raw data Calude থেকে নিবো।
 function getTextContent(content: unknown): string {
   if (!Array.isArray(content)) return "";
 
@@ -31,6 +32,7 @@ function getTextContent(content: unknown): string {
     .join("\n");
 }
 
+// এইটা লিখবো try/catch block এ সময়। মানে প্রজেক্ট একবার run করে এসে। 
 function failClosedResult(error: unknown): ReviewResult {
   return {
     verdict: "warn",
@@ -93,11 +95,12 @@ export async function reviewPullRequestDiff(input: ReviewInput): Promise<ReviewR
     },
   });
 
-  try {
+  try { // এখানে try catch টা locally project রান করে এসে লিখবো। 
     const raw = getTextContent(message.content);
     const parsed = JSON.parse(raw);
     return reviewSchema.parse(parsed);
   } catch (error) {
+    // নিচের ফাইলটা প্রজেক্ট রান করে এসে লিখবো।
     return failClosedResult(error);
   }
 }

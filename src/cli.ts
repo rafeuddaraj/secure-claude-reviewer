@@ -10,6 +10,7 @@ async function main() {
   }
 
   // Load local .env for CLI usage; CI provides env vars directly.
+  // আগে শুধু process.loadEnvFile(".env"); লিখবো তারপরে try catch এ রাখবো।
   try {
     process.loadEnvFile(".env");
   } catch (error) {
@@ -23,8 +24,10 @@ async function main() {
 
   const diff = await fs.readFile(diffPath, "utf8");
 
+  // এই লাইন গুলো এখন দিবো না। পরে দিবো।
   console.log(`Diff length: ${diff.length} characters`);
   console.log("Reviewing only the proposed changes, not the whole repository...");
+  // 
 
   const result = await reviewPullRequestDiff({
     diff,
@@ -43,9 +46,11 @@ async function main() {
     console.log(`Fix: ${finding.recommendation}`);
   }
 
+  // এই লাইন গুলো এখন দিবো না। পরে দিবো।
   console.log("");
   console.log("JSON Output:");
   console.log(JSON.stringify(result, null, 2));
+  // 
 }
 
 main().catch((error) => {

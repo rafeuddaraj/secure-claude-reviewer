@@ -1,4 +1,4 @@
-Most beginners hear “AI code review” and think, “Great, I’ll just send the code to an LLM and ask if anything is wrong.” It sounds easy, but in production this approach breaks very quickly. Sometimes the model gives inconsistent output. Sometimes it misses critical context. And sometimes the risk is not only in the code, but in the automation around the code.
+Most beginners hear “AI code review” and think, “Good, I’ll just send the code to an LLM and ask if anything is wrong.” It sounds easy, but in production this approach breaks very quickly. Sometimes the model gives inconsistent output. Sometimes it misses critical context. And sometimes the risk is not only in the code, but in the automation around the code.
 
 So in this video, we are not building a chatbot that drops random opinions. We are building a reviewer that a CI pipeline can actually trust. It will read a pull request diff, send only the minimum context needed, return machine-readable findings, validate them, and then post a clean summary to GitHub.
 
@@ -35,7 +35,7 @@ Now we initialize Node Package Manager by typing:
 
 "npm init -y"
 
-Nice, that part is done. We created the `secure-claude-reviewer` folder and initialized npm inside it.
+Good, that part is done. We created the `secure-claude-reviewer` folder and initialized npm inside it.
 
 Now we will install the required packages for this project.
 
@@ -60,7 +60,7 @@ So I type:
 
 npm install -D typescript tsx tsup vitest @types/node
 
-Great, dev dependencies are installed too.
+Good, dev dependencies are installed too.
 
 Now let’s create the TypeScript config.
 
@@ -68,16 +68,16 @@ In terminal, I run:
 
 npx tsc --init
 
-Nice, TypeScript is initialized.
+Good, TypeScript is initialized.
 ----
 ::TODO::
 ---
 
-So far, nothing magical has happened. We only set up a normal TypeScript toolchain.
+Until now, no special thing happened. We only set up a normal TypeScript toolchain.
 
-Now, before calling the model, I want to make the output shape crystal clear.
+Now, before calling the model, I want to make the output shape very clear.
 
-A lot of people start by asking the LLM first and seeing what comes back. Never start that way.
+Many people start by asking the LLM first and seeing what comes back. Never start that way.
 Start with this question instead: “What exact output shape do I want?”
 
 Now let’s create a schema. We create a `src` folder and inside it we create `schema.ts`.
