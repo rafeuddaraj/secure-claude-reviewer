@@ -10,6 +10,7 @@ type ReviewInput = {
   source: "local-cli" | "github-action";
 };
 
+// This will basically be written when taking Raw data from Calude.
 function getTextContent(content: unknown): string {
   if (!Array.isArray(content)) return "";
 
@@ -31,6 +32,7 @@ function getTextContent(content: unknown): string {
     .join("\n");
 }
 
+// Write this in the try/catch block. It means after running the project once.
 function failClosedResult(error: unknown): ReviewResult {
   return {
     verdict: "warn",
@@ -93,11 +95,12 @@ export async function reviewPullRequestDiff(input: ReviewInput): Promise<ReviewR
     },
   });
 
-  try {
+  try {// Here I will write the try catch by running the project locally.
     const raw = getTextContent(message.content);
     const parsed = JSON.parse(raw);
     return reviewSchema.parse(parsed);
   } catch (error) {
+    // Run the project and write the following file.
     return failClosedResult(error);
   }
 }

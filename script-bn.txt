@@ -1,4 +1,7 @@
-বেশিরভাগ beginner যখন “AI code review” শোনে, তখন ভাবে, “দারুণ, কোডটা LLM কে পাঠিয়ে জিজ্ঞেস করলেই তো হলো—কোনো সমস্যা আছে কি না।” শুনতে কিন্তু সহজ লাগে, কিন্তু production-এ এই পদ্ধতি খুব তাড়াতাড়ি ভেঙে পড়ে। কখনও মডেল এলোমেলো output দেয়। কখনও দরকারি context মিস করে। আর কখনও ঝুঁকিটা শুধু কোডে না—কোডের চারপাশের automation-এই থাকে।
+অনেক সময় মানুষ যখন “AI code review” কথাটা শোনে, তখন ভাবে—  কোডটা একটা LLM-এর কাছে পাঠালেই তো হলো, তারপর জিজ্ঞেস করলেই হবে কোনো সমস্যা আছে কি না। শুনতে সহজ লাগে। কিন্তু বাস্তবে, production environment-এ এই পদ্ধতি খুব দ্রুত ভেঙে পড়ে। কখনও LLM এলোমেলো বা অসম্পূর্ণ output দেয়। কখনও দরকারি context ঠিকভাবে বুঝতে পারে না। আর অনেক সময় ঝুঁকিটা শুধু কোডের মধ্যে থাকে না—কোডের চারপাশের automation, workflow, আর permission design-এর মধ্যেও থাকে।
+
+এই কারণেই বাস্তব engineering workflow-এ শুধু “modelকে code পাঠানো” যথেষ্ট না।  
+এর সাথে guardrail, validation, আর সঠিক automation designও দরকার হয়।
 
 তাই এই ভিডিওতে আমরা এমন কোনো chatbot বানাচ্ছি না যে এসে মতামত দিয়ে যাবে। আমরা এমন একটা reviewer বানাব যেটাকে CI pipeline সত্যি সত্যি ভরসা করতে পারবে। এটা pull request diff পড়বে, যতটুকু দরকার শুধু ততটুকু context পাঠাবে, machine-readable finding ফেরত আনবে, সেটা validate করবে, তারপর একটা পরিষ্কার summary GitHub-এ পোস্ট করবে।
 
@@ -37,22 +40,52 @@
 
 জোশ আমাদের কাজ শেষ। অর্থ্যাৎ আমরা secure-claude-reviewer ফোল্ডার বানালাম, তারপরে সেখানে Node Package Manager কে ইনিশিয়ালাইজ করলাম। 
 
+এখন আমরা project-টাকে Git repository বানিয়ে নিচ্ছি।
+
+তার জন্য লিখছি —
+
+git init
+
+এতে এই folder-টা এখন Git repository হয়ে গেল।
+
+এবং আমরা github এ গিয়ে একটি github repository তৈরি করে নিচ্ছি। এখন remote url টা আমরা আমাদের local git এর সাথে কানেক্ট করে দিচ্ছি।
+
 এখন আমরা secure-claude-reviewer এর জন্য দরকারি প্যাকেজ গুলো ইনিস্টল করে নিবো। 
 
+এখন আমরা project-এর জন্য দরকারি package গুলো install করবো।
 
-এখন আমরা প্রজেক্টের জন্য দরকারি প্যাকেজগুলো ইনস্টল করে নিবো।
-তার জন্য লিখছি - 
+তাই লিখছি - npm install 
 
-npm install
+আমি এখানে **Claude SDK** ব্যবহার করবো, কারণ আমরা Claude model-কে call করবো।
 
-আমি এখানে Claude SDK ব্যবহার করবো, কারণ আমরা Claude মডেলকে call করবো।
-তারপর zod ব্যবহার করবো validation-এর জন্য, যাতে মডেল থেকে যে output আসবে সেটা ঠিক shape-এর কিনা আমরা check করতে পারি।
-আর পরে GitHub-এ comment পোস্ট করার জন্য octokit লাগবে।
+তারপর **zod** ব্যবহার করবো validation-এর জন্য।  
+মানে, model থেকে যে output আসবে সেটা ঠিক shape-এর কিনা আমরা check করতে পারবো।
 
-তাই লিখছি —
+আর পরে **GitHub-এ comment পোস্ট করার জন্য** আমাদের `octokit` লাগবে।
+
+তাই আমরা এই package গুলো install করছি —
+
 @anthropic-ai/sdk zod @octokit/rest
 
-আমরা এখন প্যাকেজ গুলো ইনিস্টল করছি। 
+এখানে একটা কথা পরিষ্কার করে বলি।
+
+এই tutorial-এ আমরা Claude model ব্যবহার করছি, কারণ Claude এখন অনেক জায়গায় **জনপ্রিয় এবং reliable** — বিশেষ করে code analysis বা reasoning-এর কাজের জন্য।
+
+কিন্তু এর মানে এই না যে আপনাকে অবশ্যই Claude-ই ব্যবহার করতে হবে।
+
+আপনি চাইলে অন্য model-ও ব্যবহার করতে পারেন, যেমন:
+
+* OpenAI model
+* Gemini
+* বা অন্য কোনো LLM provider
+
+শুধু সেই model-এর **official SDK বা API documentation** দেখে integrationটা করে নিতে হবে।
+
+এই ভিডিওতে আমরা যে architecture বানাচ্ছি —
+schema, validation, prompt design, workflow — এই পুরো approachটা একই থাকবে।
+
+তাই আপনি যদি এই ভিডিওটা বুঝে follow করতে পারেন,
+তাহলে অন্য model ব্যবহার করেও একই system খুব সহজেই বানাতে পারবেন।
 
 এখন আমরা development-এর জন্য কিছু tool ইনস্টল করছি TypeScript, tsx, tsup, আর vitest।
 
@@ -69,9 +102,6 @@ npm install -D typescript tsx tsup vitest @types/node
 npx tsc --init
  
 জোশ typescript ইনিশিয়ালাইজ হয়ে গেছে।
-----
-::TODO::
----
 
 এখন পর্যন্ত কোনো জাদু হয়নি। আমরা শুধু normal একটা TypeScript tool setup করছি।
 
@@ -82,93 +112,221 @@ npx tsc --init
 
 চলুন আমরা এখন একটা schema বানাই, আমরা একটি src ফোল্ডার নিচ্ছি এবং সেখানে schema.ts ফাইল বানাচ্ছি।
 
-আমরা এখন schema.ts ফাইলে লিখছি - 
+এখন আমরা `schema` ফাইলে code লেখা শুরু করছি।
 
+প্রথমে `zod` import করছি।
 
 import { z } from "zod";
+`
 
+এখানে আমরা মূলত `zod`-কে project-এ নিয়ে আসছি,
+যাতে পরে আমরা data-এর shape define করতে পারি।
 
-আমরা মূলত zod কে ইম্পোর্ট করে নিলাম।
+সহজ করে বললে, `zod` দিয়ে আমরা আগে থেকেই বলে দিতে পারি —
+কোন data কেমন হবে, কোন field লাগবে, আর কোন field কী type-এর হবে।
 
-আমি severity দিয়ে শুরু করছি, কারণ প্রতিটা finding-এর একটা priority লাগবেই।
+এখন আমি `severity` দিয়ে শুরু করছি।
 
-তাই লিখছি - 
+কারণ প্রতিটা finding-এর একটা **priority level** লাগবেই।
 
+তাই লিখছি —
 
 export const severitySchema = z.enum(["low", "medium", "high", "critical"]);
 
 
-এবার finding itself।
+এখানে `z.enum(...)` ব্যবহার করে আমরা বলে দিচ্ছি,
+`severity` field-এর value ইচ্ছামতো কিছু হতে পারবে না।
 
+এটা শুধু এই চারটার একটা হতে পারবে:
+
+* `low`
+* `medium`
+* `high`
+* `critical`
+
+মানে, এতে output অনেক বেশি consistent থাকে।
+
+এবার আমরা একটা finding-এর structure define করছি।
 
 export const findingSchema = z.object({
   id: z.string(),
   title: z.string(),
 
+এখানে `z.object(...)` দিয়ে আমরা মূলত বলছি,
+একটা finding আসলে একটা object হবে।
 
-একেকটা field একেকটা করে যোগ করি, যাতে প্রতিটার কাজ স্পষ্ট থাকে। তাই লিখছি - 
+আর ওই object-এর ভেতরে `id` আর `title` নামে field থাকবে,
+এবং দুটোই string হবে।
 
+* `id` দিয়ে finding-টাকে uniquely identify করা যাবে
+* `title` দিয়ে finding-এর short নাম বা heading বোঝানো হবে
+
+এখন আমারা আরও কিছু field যোগ করবো, যাতে প্রতিটার কাজই পরিষ্কার থাকে।
+
+তাই লিখছি —
 
   severity: severitySchema,
   category: z.string(),
 
 
-আমরা চাই একটা ছোট explanation, আর diff থেকে real evidence-ও চাই। তাই লিখছি -
+এখানে `severity` field-এর জন্য আমরা আগের `severitySchema` ব্যবহার করছি।
 
+মানে severity অবশ্যই `low`, `medium`, `high`, `critical` — এই চারটার মধ্যে একটা হবে।
+
+আর `category` হবে একটা string।
+
+এটা দিয়ে issue-টা কোন category-তে পড়ে সেটা বোঝানো যাবে।
+যেমন:
+
+* `sql-injection`
+* `auth`
+* `pipeline-safety`
+* `privacy`
+
+এখন আমরা চাই একটা ছোট explanation থাকুক,
+আর diff থেকে real evidence-ও থাকুক।
+
+তাই লিখছি —
 
   summary: z.string(),
   filePath: z.string(),
 
 
-এবার line number আর safer fix suggestion এর জন্য লিখি- 
+এখানে:
 
+* `summary` হবে finding-এর ছোট explanation
+* `filePath` দিয়ে বোঝানো হবে issue-টা কোন file-এ পাওয়া গেছে
+
+মানে, শুধু problem detect করলেই হবে না,
+কোথায় হয়েছে সেটাও জানাতে হবে।
+
+এবার line number আর safer fix suggestion ও আমরা চাই, তাই এটাই ডিফাইন করে দিচ্ছি —
 
   line: z.number().int().nonnegative(),
   evidence: z.string(),
 
+এখানে `line` field-এর জন্য আমরা বলছি:
 
-সবশেষে remediation text এর জন্য লিখি - 
+* এটা number হবে
+* integer হবে
+* negative হতে পারবে না
+
+মানে line number হিসেবে valid একটা positive বা zero-based সংখ্যা হবে।
+
+আর `evidence` হবে string,
+যেখানে diff থেকে actual evidence বা relevant code snippet-এর explanation থাকবে।
+
+সবশেষে আমরা `recommendation` fieldটা যোগ করছি।
+
+এখানে reviewer issue-এর জন্য একটা **fix suggestion** দিবে।
+
+তাই লিখছি —
+
+recommendation: z.string()
 
 
-  recommendation: z.string()
-});
+এখানে `recommendation` হবে একটা string,
+যেখানে safer fix বা next step-এর suggestion থাকবে।
 
+এখন এই জায়গায় এসে একটা finding-এর full shape define হয়ে গেল।
 
-এখন top-level review response এর জন্য লিখি - 
+মানে, একটা finding-এর মধ্যে এখন থাকবে:
 
+* id
+* title
+* severity
+* category
+* summary
+* filePath
+* line
+* evidence
+* recommendation
 
-export const reviewSchema = z.object({
-  verdict: z.enum(['pass', 'warn', 'fail']),
+এখন আমরা `findingSchema`-এর শেষে **`.strict()` method** ব্যবহার করছি। 
+.strict() ব্যবহার করার কারণ হলো —
+আমরা চাই model থেকে যে output আসবে সেটা একদম schema অনুযায়ীই হোক।
+মানে, schema-তে যেসব field আমরা define করেছি শুধু সেগুলোই থাকতে পারবে।
+যদি অতিরিক্ত কোনো field আসে, তাহলে validation fail করবে।
+এতে আমাদের output অনেক বেশি predictable এবং safe থাকে।
 
+এখন আমরা top-level review response define করবো।
 
-তারপর findings-এর list আর একটা compact summary এর জন্য লিখি - 
+তাই লিখছি —
 
+export const reviewSchema = z.object({})
+
+এখানে `reviewSchema` হচ্ছে পুরো review result-এর structure।
+
+এর মধ্যে `verdict` field নিচ্ছি,
+এবং সেটাও fixed কিছু value-র মধ্যে একটা হবে, তাই লিখছি - 
+
+verdict: z.enum(['pass', 'warn', 'fail'])
+
+মানে overall review-এর final decision এখান থেকে বোঝা যাবে এখন, তাই না।
+
+তারপর findings-এর list আর একটা compact summary-এর জন্য লিখছি —
 
   summary: z.string(),
   findings: z.array(findingSchema)
 });
 
 
-এখন আমাদের inferred type-গুলোও export করতে হবে, তাই লিখি - 
+এখানে:
 
+* `summary` হবে পুরো review-এর short overall explanation
+* `findings` হবে একটা array, আর ওই array-এর প্রতিটা item `findingSchema` follow করবে
+
+মানে findings list-এর ভেতরে যেটাই আসবে,
+সবকিছুই আমাদের define করা finding structure অনুযায়ী হতে হবে।
+
+এখন আমরা `reviewSchema `-এর শেষেও **`.strict()` method** ব্যবহার করছি, ঠিক আছে।
+
+এখন আমাদের inferred type-গুলোও export করতে হবে।
+
+তাই লিখছি —
 
 export type Severity = z.infer<typeof severitySchema>;
 export type Finding = z.infer<typeof findingSchema>;
 export type ReviewResult = z.infer<typeof reviewSchema>;
 
 
-এই file-টাই আমাদের contract। পরে LLM কিছু অদ্ভুত বললেও, আমাদের app শুধু ওই data-ই নেবে যেটা এই shape-এর সাথে মিলে।
+এখানে `z.infer` ব্যবহার করে আমরা Zod schema থেকেই TypeScript type বানিয়ে নিচ্ছি।
 
-এখন আমি JSON Schema version-ও চাই, কারণ structured outputs API সাধারণত schema-like format নেয়। তাই লিখি - 
+এর সুবিধা হলো,
+আমাদের আলাদা করে আবার manually type লিখতে হচ্ছে না।
 
+মানে:
+
+* `Severity` type আসবে `severitySchema` থেকে
+* `Finding` type আসবে `findingSchema` থেকে
+* `ReviewResult` type আসবে `reviewSchema` থেকে
+
+এতে schema আর type — দুইটা একই source থেকে আসছে।
+ফলে mismatch হওয়ার chance কমে যায়।
+
+এই Schema-টাই আমাদের contract। পরে LLM কিছু অদ্ভুত বললেও, আমাদের app শুধু ওই data-ই নেবে যেটা এই shape-এর সাথে মিলে।
+
+-----------
+
+এখন আমি `reviewSchema`-র একটা **JSON Schema version**-ও বানাতে চাই।
+
+কারণ structured output API-তে অনেক সময় schema-like format দিতে হয়,  
+যাতে model-কে পরিষ্কার করে বলা যায় response-এর shape কেমন হবে।
+
+তাই আমরা `reviewJsonSchema` লিখছি।
 
 export const reviewJsonSchema = {
   type: 'object',
   additionalProperties: false,
 
+এখানে `type: 'object'` দিয়ে আমরা বলছি,
+পুরো response-টা একটা object হবে।
 
-এখন top-level properties এর জন্য লিখি - 
+আর `additionalProperties: false` দিয়ে আমরা বলে দিচ্ছি,
+যে field-গুলো define করা আছে শুধু সেগুলোই থাকবে, extra কিছু থাকবে না।
 
+
+এখন top-level properties define করছি।
 
   properties: {
     verdict: {
@@ -176,17 +334,22 @@ export const reviewJsonSchema = {
       enum: ['pass', 'warn', 'fail']
     },
 
+এখানে `verdict` field-এর type string,
+আর সেটা শুধু `pass`, `warn`, বা `fail` — এই তিনটার একটা হতে পারবে।
 
-এবার summary property এর জন্য লিখি - 
+মানে overall review result এখান থেকে বোঝা যাবে।
 
+
+এবার `summary` property যোগ করছি।
 
     summary: {
       type: 'string'
     },
 
+এখানে `summary` হবে একটা ছোট overall explanation।
 
-এখন findings array এর জন্য লিখি -
 
+এখন `findings` array define করছি।
 
     findings: {
       type: 'array',
@@ -194,17 +357,26 @@ export const reviewJsonSchema = {
         type: 'object',
         additionalProperties: false,
 
+মানে `findings` হবে একটা array,
+আর ওই array-এর প্রতিটা item হবে একটা object।
 
-এখন finding fields এর জন্য লিখি - 
+এখানেও `additionalProperties: false` ব্যবহার করছি,
+যাতে finding object-এর ভেতরে extra field ঢুকতে না পারে।
 
+
+এখন finding-এর field-গুলো একে একে define করছি।
 
         properties: {
           id: { type: 'string' },
           title: { type: 'string' },
 
+এখানে `id` আর `title` — দুটোই string।
 
-এবার severity যুক্ত করি - 
+* `id` finding-টাকে uniquely identify করবে
+* `title` finding-এর short heading হবে
 
+
+এবার `severity` যোগ করছি।
 
           severity: {
             type: 'string',
@@ -212,9 +384,13 @@ export const reviewJsonSchema = {
           },
           category: { type: 'string' },
 
+এখানে `severity` শুধু fixed কিছু value-এর মধ্যে একটা হবে।
 
-এবং আমাদের বাকি অংশও যোগ করি যেমন summary, filePath, line, evidence, remediation - 
+আর `category` হবে string,
+যেটা issue-এর ধরন বোঝাবে।
 
+
+এখন বাকি field-গুলো যোগ করছি।
 
           summary: { type: 'string' },
           filePath: { type: 'string' },
@@ -223,9 +399,18 @@ export const reviewJsonSchema = {
           recommendation: { type: 'string' }
         },
 
+এখানে:
 
-এবার required keys গুলো লিখে ফেলি - 
+* `summary` finding-এর short explanation
+* `filePath` কোন file-এ issue আছে
+* `line` কোন line-এ issue আছে
+* `evidence` diff থেকে support করা evidence
+* `recommendation` safer fix suggestion
 
+আর `line`-এর ক্ষেত্রে আমরা বলে দিচ্ছি এটা integer হবে এবং 0-এর নিচে যাবে না।
+
+
+এবার required key-গুলো লিখছি।
 
         required: [
           'id',
@@ -242,44 +427,55 @@ export const reviewJsonSchema = {
     }
   },
 
+মানে, একটা valid finding object-এ এই field-গুলো থাকতেই হবে।
 
-এবং আমরা শেষে final required list গুলো দিয়ে দিচ্ছি - 
 
+এবং সবশেষে top-level required list দিচ্ছি।
 
   required: ['verdict', 'summary', 'findings']
 } as const;
 
+মানে পুরো review result valid হতে হলে এই তিনটা field থাকা লাগবেই:
 
-আসলে এই জায়গাটাতেই প্রজেক্টটা একটা সাধারণ “AI toy” থেকে ধীরে ধীরে real automation system-এ পরিণত হতে শুরু করে।
-কারণ এখন থেকে LLM ইচ্ছামতো কিছু লিখে দিতে পারবে না।
-আমরা আগেই একটা clear contract define করে দিয়েছি—মানে output ঠিক কোন shape-এ আসতে হবে সেটা নির্দিষ্ট করা আছে।
-তাই মডেলের response আমাদের সেই contract-এর মধ্যেই থাকতে হবে।
+* `verdict`
+* `summary`
+* `findings`
 
-এখন আমরা ফাইলটা save করে নিচ্ছি, আর ছোট্ট করে একটা **sanity check** করবো।
-মানে, সবকিছু ঠিকঠাক আছে কিনা, সেটা একবার দেখে নিচ্ছি।
-এবার আমি আরেকটা গুরুত্বপূর্ণ জিনিস add করতে চাই।
-কোনো **diff** সরাসরি LLM-এর কাছে পাঠানোর আগে আমি একটা ছোট্ট **safety layer** রাখতে চাই।
+আর `as const` ব্যবহার করছি, যাতে TypeScript এই object-টাকে আরও exact literal shape হিসেবে ধরে।
+
+এই জায়গা থেকেই পুরো সিস্টেমটা একটা সাধারণ **LLM demo** থেকে আরও **structured automation**-এর দিকে যেতে শুরু করে।
+
+কারণ এখন থেকে LLM ইচ্ছামতো free-form text দিলেই সেটা আমরা ব্যবহার করবো না।
+আমরা আগে থেকেই একটা **clear output contract** define করে দিয়েছি—  
+মানে response ঠিক কোন shape-এ আসতে হবে সেটা নির্দিষ্ট করা আছে।
+তাই এখন মডেলের response-ও সেই **defined schema-এর মধ্যেই থাকতে হবে**।
+
+এখন আমরা ফাইলটা save করে নিচ্ছি ঠিক আছে।
+
+এবার আমি আরেকটা গুরুত্বপূর্ণ জিনিস add করতে চাই। কোনো **diff** সরাসরি LLM-এর কাছে পাঠানোর আগে আমি একটা ছোট্ট **safety layer** রাখতে চাই।
+
 এটা একদম perfect না, সব secret ধরে ফেলবেও না — কিন্তু practical।
 মানে, real project-এ এই ধরনের ছোট ছোট safety step অনেক কাজে লাগে।
 এই কাজটার জন্য আমি একটা নতুন file বানাচ্ছি।
-ফাইলের নাম —
-`redact.ts`
+
+ফাইলের নাম দিচ্ছি - redact.ts
+
 এখন এই file-এর ভেতরে আমি প্রথমে একটা array লিখছি, যেখানে কিছু pattern রাখবো।
 
 const secretPatterns = []
 
 এই `secretPatterns` array-র কাজ হচ্ছে, diff-এর ভেতরে এমন কিছু sensitive জিনিস আছে কিনা সেগুলো detect করার চেষ্টা করা।
 
-মানে, যদি কোথাও API key, token, secret, বা password টাইপ কিছু লেখা থাকে, তাহলে আমরা সেগুলো আগে hide করে দিতে পারি।
+মানে, যদি কোথাও API key, token, secret, বা password টাইপ কিছু লেখা থাকে, তাহলে আমরা সেগুলো আগে hide করে দিবো।
+
 এখন প্রথম patternটা লিখছি।
+
 /(api[_-]?key\s*[:=]\s*["'][^"']+["'])/gi,
 
 এই patternটা মূলত **API key** ধরার চেষ্টা করবে।
 
 যেমন কোথাও যদি এরকম কিছু থাকে —
-apiKey = "abc123"
-অথবা
-api_key: "secret-value"
+apiKey = "abc123" অথবা api_key: "secret-value"
 
 তাহলে এই regex সেটা match করার চেষ্টা করবে।
 
@@ -287,17 +483,13 @@ api_key: "secret-value"
 `apiKey`, `api_key`, `api-key` — এই ধরনের common naming pattern ধরে ফেলা।
 
 এবার আমরা token ধরার জন্য আরেকটা pattern লিখছি।
-
-
 /(token\s*[:=]\s*["'][^"']+["'])/gi,
-
 
 এটার কাজও একইরকম।
 
 মানে, যদি কোথাও `token = "something"` বা `token: "something"` টাইপ value থাকে, তাহলে সেটা detect করার চেষ্টা করবে।
 
 এরপর আমরা `secret` আর `password`-এর জন্য pattern যোগ করছি।
-
 
 /(secret\s*[:=]\s*["'][^"']+["'])/gi,
 /(password\s*[:=]\s*["'][^"']+["'])/gi
@@ -315,19 +507,16 @@ api_key: "secret-value"
 
 export function redactSecrets(input: string): string {}
 
-এই function একটা `input` নিবে — মানে diff বা text।
+আমাদের এই function একটা `input` নিবে — মানে diff বা text।
 
 আর পরে এটা একটা cleaned version return করবে।
 
-
-আমরা এখন ফাংশনের ভেতরে `output` নামে একটা variable নিবো তাই লিখছি - 
+আমরা এখন ফাংশনের ভেতরে `output` নামে একটা variable নিচ্ছি তাই লিখছি - 
 let output = input;
 
-তো এখানে শুরুতে `input`-এর original value রাখা হচ্ছে।
+তো এখানে শুরুতে `input`-এর original value রাখা হচ্ছে। সহজ করে বললে, আমরা original text নিয়ে কাজ শুরু করছি।
 
-সহজ করে বললে, আমরা original text নিয়ে কাজ শুরু করছি।
-
-এখন আমরা `secretPatterns` array-এর প্রতিটা pattern এক এক করে loop করবো।
+এখন আমরা মূলত  `secretPatterns` array-এর প্রতিটা pattern এক এক করে loop করবো।
 তাই লিখছি - 
 
 for (const pattern of secretPatterns) {}
@@ -342,19 +531,12 @@ output = output.replace(pattern, "[REDACTED_SECRET]");
 
 ধরেন diff-এর মধ্যে যদি থাকে `apiKey = "my-super-secret-key"`
 
-তাহলে replace হওয়ার পরে সেটা [REDACTED_SECRET] হয়ে যেতে পারে তাই না। মানে, sensitive অংশটা hide হয়ে গেল। এবার loop শেষ হয়ে গেলে আমরা cleaned text return করবো তাই না, এখন লিখি - 
+তাহলে replace হওয়ার পরে সেটা [REDACTED_SECRET] হয়ে যেতে পারে তাই না। মানে, sensitive অংশটা hide হয়ে গেল। এবার loop শেষ হয়ে গেলে আমরা cleaned text return করবো, এখন লিখি - 
 
 return output;
 
-এখন একটা কথা পরিষ্কার করে বলি।
-এটা কোনো magical protection না।
-মানে, এটা ব্যবহার করলেই সব secret ১০০% ধরা পড়ে যাবে — এমন না।
-কিন্তু practical দিক থেকে এটা খুব useful একটা step।
-কারণ অনেক সময় accidental exposure হয় একদম সাধারণ জায়গা থেকে।
-আর আমরা এখানে সেই risk-টা একটু কমানোর চেষ্টা করছি।
-Security-তে সাধারণত mindset টা এমনই হয় —
-সবকিছু একবারে perfect করার চেষ্টা না করে,
-ধীরে ধীরে risk কমানো।
+এখন একটা কথা পরিষ্কার করে বলি। এটা কোনো magical protection না। মানে, এটা ব্যবহার করলেই সব secret ১০০% ধরা পড়ে যাবে — এমন না। কিন্তু practical দিক থেকে এটা খুব useful একটা step। কারণ অনেক সময় accidental exposure হয় একদম সাধারণ জায়গা থেকে। আর আমরা এখানে সেই risk-টা একটু কমানোর চেষ্টা করছি।
+Security-তে সাধারণত mindset টা এমনই হয় — সবকিছু একবারে perfect করার চেষ্টা না করে, ধীরে ধীরে risk কমানো।
 
 
 এখন আমি চাই **LLM তার কাজটা একদম পরিষ্কারভাবে বুঝুক**।
@@ -445,14 +627,14 @@ LLM সেটা follow করতে পারবে না।
 
 ---
 
-এখন আমি **প্রথম milestone** হিসেবে একটা **local CLI** বানাতে চাই।
+এখন আমরা **প্রথম milestone** হিসেবে একটা **local CLI** বানাতে চাই।
 কারণ local-এ শুরু করলে আমরা খুব দ্রুত জিনিসটা test করতে পারি।  
 আর শুরুতেই GitHub Actions, permissions, workflow — এসব ঝামেলায়ও যেতে হয় না।
-এই কাজটার জন্য আমি একটা নতুন ফাইল বানাচ্ছি —
+এই কাজটার জন্য আমরা একটা নতুন ফাইল বানাচ্ছি —
 
 `cli.ts`
 
-এই ফাইলে প্রথমে আমি দরকারি module গুলো import করে নিচ্ছি - 
+এই ফাইলে প্রথমে আমরা দরকারি module গুলো import করে নিচ্ছি - 
 
 import fs from "node:fs/promises";
 import process from "node:process";
@@ -460,10 +642,6 @@ import process from "node:process";
 এখানে `fs` লাগবে file read করার জন্য,
 আর `process` লাগবে command line argument access করার জন্য।
 
-এবার local reviewer module import করছি। -
-import { reviewPullRequestDiff } from "./review";
-
-এই functionটাই পরে diff নিয়ে review run করবে।
 এখন CLI-র জন্য একটা entry function লিখছি।
 
 async function main() {}
@@ -483,11 +661,54 @@ if (!diffPath) {}
 
 console.error("Usage: npm run dev -- ./fixtures/pr.diff");
 
-মানে, script কীভাবে run করতে হবে সেটা clear করে বলে দিচ্ছি।
+আমরা একটু পরেই fixtures/pr.diff বানাবো, ঠিক আছে, এটা নিয়ে ভয় পাবার কিছুই নেই।
+
+মোট কথা হচ্ছে script কীভাবে run করতে হবে সেটা clear করে বলে দিচ্ছি।
 
 তারপরে আমরা process.exit(1) করছি।
 
-এখন আমরা diff fileটা read করবো
+এখন আমাদের আরেকটা গুরুত্বপূর্ণ কাজ করতে হবে।
+
+আমরা যখন local CLI দিয়ে toolটা run করবো, তখন আমাদের `.env` ফাইল থেকে environment variable load করতে হবে।
+
+কারণ local development-এর সময় সাধারণত API key বা অন্য configuration `.env` ফাইলের মধ্যেই রাখা থাকে।
+
+তাই আমরা `.env` ফাইলটা load করার জন্য এই codeটা লিখছি —
+
+process.loadEnvFile(".env");
+
+আচ্ছা এখন তো এটি এরর হতে পারে তাই না, এখন আমরা এটিকে try catch দিয়ে wrap করে দিচ্ছি - 
+
+এখন catch block থেকে কে error কে রিসিভ করছি, তারপরে আমরা একটি code variable নিচ্ছি।
+
+এখন আমরা লিখছি —
+
+(error as NodeJS.ErrnoException).code
+
+এখানে আমরা error object থেকে **error code বের করছি**।
+
+কারণ Node.js যখন file-related কোনো error দেয়, তখন সেই error-এর মধ্যে সাধারণত একটা `code` property থাকে।
+
+কিন্তু TypeScript সরাসরি `error.code` access করতে দেয় না।  
+তাই আমরা `error`-কে `NodeJS.ErrnoException` type হিসেবে cast করছি, যাতে `.code` safely ব্যবহার করা যায়।
+
+এখন চেক করছি যে if code !== "ENOENT" তাহলে আমরা throw করছি error কে।
+
+এখানে আমরা `.env` ফাইল load করার চেষ্টা করছি, যাতে local development-এর সময় environment variable পাওয়া যায়।
+
+আর যদি `.env` ফাইল না থাকে (যেমন CI environment-এ), তাহলে program crash না করে সেটাকে safely ignore করা হচ্ছে ঠিক আছে। 
+
+আচ্ছা এখন আমরা একটি কাজ করি, আমারা মূলত reviewPullRequestDiff নামে একটি ফাংশন বানাবো, কিন্তু এখন বানাবো না, এটি পরে বানাবো। এখন যদি বানাই তাহলে বুঝতে একটু সমস্যা হবে আপনাদের। তাই আমি একটি কাজ করছি। এই ফাংশন বানানোর আগেই ফাংশনকে import করে নিচ্ছি। মানে আমরা আগে function টা call করবো, তারপরে function টা বানাবো। 
+
+এখন function টা import করছি তার জন্য লিখি - 
+
+const { reviewPullRequestDiff } = await import("./review.js");
+
+এখানে আমরা **dynamic import** ব্যবহার করছি।
+
+মানে runtime-এ `review.js` ফাইল থেকে `reviewPullRequestDiff` function টাকে import করছি আর কি ঠিক আছে।
+
+এখন আমরা diff fileটা read করবো, তার জন্য লিখি - 
 
 const diff = await fs.readFile(diffPath, "utf8");
 
@@ -501,7 +722,7 @@ const result = await reviewPullRequestDiff({
 এখানে আমরা diff pass করছি,
 আর source হিসেবে বলে দিচ্ছি এটা local CLI থেকে এসেছে।
 
-এখন আগে একটা readable summary print করি।
+এখন আমারা আগে একটা readable summary print করি।
 
 console.log(`Verdict: ${result.verdict}`);
 console.log(result.summary);
@@ -516,12 +737,18 @@ console.log(result.summary);
 for (const finding of result.findings) {}
 
 এবার loop এর মধ্যে লিখি - 
+console.log("");
+এই console.log blank string দিচ্ছি কারণ আমরা চাচ্ছি একটি new line হোক যাতে log গুলো বুঝতে সুবিধা হয় loop এর মধ্যে।
+
+এখন লিখি - 
 console.log(`[${finding.severity.toUpperCase()}] ${finding.title}`);
 এখানে প্রথমে severity আর title দেখাচ্ছি।
 
 এবার আমি file path আর line number print করবো। 
 
 console.log(`${finding.filePath}:${finding.line}`);
+
+এখন আমরা summary কে প্রিন্ট করছি।
 console.log(finding.summary);
 
 এরপর evidence আর recommendation print করবো।
@@ -529,234 +756,244 @@ console.log(finding.summary);
 console.log(`Evidence: ${finding.evidence}`);
 console.log(`Fix: ${finding.recommendation}`);
 
+এখন আমরা এই ফাইলেই main function টাকে কল করছি। 
+
 সবশেষে একটা top-level catch রাখছি,
 যাতে কোথাও error হলে সেটা cleanly console-এ দেখা যায়। তার জন্য লিখছি - 
 
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});
+main().catch((error) => {});
 
-আর একটা জিনিস এখানে খেয়াল রাখুন —
-আমাদের এই file-টা এখন `reviewPullRequestDiff` import করছে, কিন্তু functionটা এখনো বানানো হয়নি।
+এর জন্য আমরা দিচ্ছি - 
+ console.error(error);
+
+এবং শেষে process.exit(1); করছি।
+
+আচ্ছা এখন কি কিছু একটা মনে করতে পারছেন?  —
+আমাদের এই file-টা এখন `reviewPullRequestDiff` import করছে, কিন্তু functionটা এখনো বানানো হয়নি কিন্তু। এবার সময় এসেছে আমাদের reviewPullRequestDiff ফাংশনটি বানানোর।
 
 ---
 
-এখন আমরা **আসল review engine**টা বানাবো।
-মানে, এই অংশটাই হচ্ছে সেই core logic,  
-যেটা diff নিবে, Claude-এ পাঠাবে, response নিবে, তারপর সেটা validate করবে।
-এই কাজটার জন্য আমি একটা নতুন ফাইল বানাচ্ছি - 
+এখন আমরা আমাদের **আসল review engine**টা বানাবো।
+
+মানে, এই ফাইলটাই সেই জায়গা যেখানে পুরো review flow চলবে।
+এখানেই diff যাবে, model response আসবে, তারপর সেটা validate হয়ে structured result হিসেবে ফিরে আসবে।
+
+এই কাজটার জন্য আমি একটা নতুন ফাইল বানাচ্ছি —
 
 `review.ts`
 
-কারণ আমরা এটাই cli.ts ফাইলে import করেছিলাম তাই না। 
-প্রথমে Claude SDK কে import করছি।
+এবং হ্যাঁ, এটাকেই আমরা একটু আগে `cli.ts` ফাইলে import করেছিলাম, তাই না।
 
+প্রথমে আমরা Claude SDK-কে import করছি।
 
 import Anthropic from "@anthropic-ai/sdk";
-`
+
+কারণ এই SDK দিয়েই আমরা Claude model-এ request পাঠাবো।
+
+এরপর আমরা `process` module import করছি।
+
+import process from "node:process";
+
+এটা Node.js-এর built-in module।
+এর মাধ্যমে আমরা environment variable access করতে পারি।
 
 এবার আমরা prompt, redaction helper, আর schema import করছি।
 
-import { buildSystemPrompt } from "./prompt";
-import { redactSecrets } from "./redact";
-import { reviewJsonSchema, reviewSchema, type ReviewResult } from "./schema";
+import { buildSystemPrompt } from "./prompt.js";
+import { redactSecrets } from "./redact.js";
+import { reviewJsonSchema, reviewSchema, type ReviewResult } from "./schema.js";
 
-মানে, এই file-এ আমরা তিনটা জিনিস একসাথে ব্যবহার করবো —
+মানে এই file-এর মধ্যে আমরা তিনটা জিনিস ব্যবহার করবো —
+
 * prompt
 * secret redaction
 * output validation
 
-এখন clarity-এর জন্য আমি input-এর একটা type define করবো।
-
+এখন clarity-এর জন্য আমরা input-এর একটা type define করছি।
 
 type ReviewInput = {
-    diff: string;
-    source: "local-cli" | "github-action";
+  diff: string;
+  source: "local-cli" | "github-action";
 };
 
+এখানে আমরা বলে দিচ্ছি এই function-এর input কেমন হবে।
 
-এখানে আমরা basically বলে দিচ্ছি,
-এই function-এর input-এ কী কী আসবে।
+একটা `diff` আসবে।
+আর একটা `source` আসবে।
 
-একটা `diff` আসবে,
-আর একটা `source` আসবে — মানে reviewটা local CLI থেকে এসেছে, নাকি GitHub Action থেকে এসেছে।
+মানে reviewটা local CLI থেকে এসেছে নাকি GitHub Action থেকে এসেছে — সেটাও আমরা জানবো।
 
-এবার Claude client বানাবো।
+---
 
+এখন আমরা main function লিখছি।
 
-const client = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-
-এখানে API key আমরা code-এর মধ্যে hardcode করছি না।
-বরং environment variable থেকে নিচ্ছি, যেটা অনেক safer।
-
-এখন একটা ছোট helper function লিখছি।
-
-function getTextContent(content: Array<{ type: string; text?: string }>) {}
-
-এই ফাংশোনের মধ্যে লিখছি - 
-
-return
-
-প্রথমে আমরা `content` arrayটা নিচ্ছি।
-Claude API থেকে response সাধারণত **multiple content block** আকারে আসে।
-মানে response একটাই string না হয়ে, কয়েকটা object-এর array হতে পারে।
-এখন প্রথম ধাপে আমরা `filter` করে type টা text দিয়ে ফিল্টার করে নিবো তাই লিখছি 
-content.filter((item) => item.type === "text" && item.text)
-
-এখানে আমরা শুধু সেই blockগুলো রাখছি যেগুলোর `type` হচ্ছে `"text"`
-আর যেগুলোর মধ্যে আসল text আছে।
-
-মানে অন্য কোনো type থাকলে সেগুলো বাদ চলে যাবে।
-
-এরপর আমরা `map` ব্যবহার করবো।
-
-.map((item) => item.text)
-
-এটার কাজ খুব simple।
-প্রতিটা item থেকে শুধু **text অংশটা বের করে আনা**।
-মানে object থেকে শুধু text value নিয়ে একটা নতুন array বানানো।
-শেষে আমরা সবগুলো text একসাথে **join** করছি।
-
-.join("\n")
-
-এটা সব text blockকে একসাথে একটা string বানিয়ে দেয়।
-
-আর মাঝখানে newline (`\n`) দিয়ে আলাদা করে দেয়।
-
-এর কাজ হচ্ছে Claude response-এর content block থেকে শুধু text অংশগুলো বের করে একসাথে join করা।
-
-কারণ model response অনেক সময় plain string আকারে না এসে block আকারে আসে।
-
-এবার main function টা লিখছি।
-
-export async function reviewPullRequestDiff(
-  input: ReviewInput
-): Promise<ReviewResult> {}
+export async function reviewPullRequestDiff(input: ReviewInput): Promise<ReviewResult>
 
 এখানেই পুরো review flow চলবে।
 
-সবার আগে আমি incoming diff-টার ওপর redaction চালাবো।
+সবার আগে আমরা API key check করছি।
+const apiKey = process.env.ANTHROPIC_API_KEY;
+যদি API key না থাকে, তাহলে আমরা clear error দিচ্ছি যে - 
+
+throw new Error ("Missing ANTHROPIC_API_KEY. Set it in environment or in .env for local CLI runs.")
+
+কারণ পরে গিয়ে confusing error পাওয়ার চেয়ে
+এখানেই বুঝে যাওয়া ভালো কী missing।
+
+Claude-এর API ব্যবহার করতে হলে আপনি claude.com-এ যাবেন।
+তারপর উপরের header থেকে “Pricing” এ ক্লিক করবেন, সেখান থেকে API section-এ যাবেন।
+
+এরপর “Start Building” বা Billing setup অপশন থেকে লগইন বা রেজিস্টার করবেন এবং billing setup সম্পন্ন করবেন।
+
+Billing setup হয়ে গেলে সেখান থেকেই আপনি API key generate করতে পারবেন।
+
+আর যদি আপনি অন্য কোনো model provider ব্যবহার করতে চান, তাহলে তাদের official documentation দেখে একইভাবে API key তৈরি করে নিতে পারবেন।
+
+--- 
+
+এখন আমরা Claude client বানাচ্ছি।
+
+const client = new Anthropic({ apiKey });
+
+এখানে API key code-এর মধ্যে hardcode করছি না।
+বরং environment variable থেকে নিচ্ছি —
+যেটা অনেক safer practice।
+এখন আমরা incoming diff-টার ওপর redaction চালাচ্ছি।
 
 const redactedDiff = redactSecrets(input.diff);
 
-মানে, diff-এর মধ্যে accidentally কোনো secret টাইপ কিছু থাকলে সেটা আগে hide করে দিচ্ছি।
+মানে diff-এর মধ্যে accidentally কোনো secret থাকলে
+আমরা সেটা আগে hide করে দিচ্ছি।
 
-এরপর আমি একটা defensive size limit দিচ্ছি।
+
+এরপর একটা defensive size limit দিচ্ছি।
 
 const limitedDiff = redactedDiff.slice(0, 120_000);
 
-এর কারণ হলো, আমরা model-এর কাছে অযথা খুব বড় input পাঠাতে চাই না।
+কারণ আমরা model-এর কাছে অযথা খুব বড় input পাঠাতে চাই না।
 
-এটা cost, speed, আর stability — তিনটার দিক থেকেই useful।
+এটা helpful কয়েকটা কারণে —
+* cost কমে
+* response দ্রুত আসে
+* irrelevant context কমে
 
-এখন আমরা actual Claude request করছি।
+---
 
-const message = await client.messages.create()
+এখন আমরা actual Claude request করছি। তার জন্য লিখছি - 
 
-এর মধ্যে আমরা প্যারামিটারর একটি Object দিচ্ছি। 
+const message = await (client.messages as any).create()
 
-এবং এখানে প্রপার্টি হিসাবে দিচ্ছি - 
+এখানে Claude API-তে request যাচ্ছে।
 
-{
-  model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-6',
-}
+এখন আমরা একটা blank object pass করে দিচ্ছি। 
 
-এখানে model select করা হচ্ছে।
-আর যদি environment variable-এ কিছু set না থাকে, তাহলে default হিসেবে `claude-sonnet-4-6` নেওয়া হবে।
+প্রথমে আমরা `model` লিখছি।
 
-এবার token budget set করছি।
+এখানে আমরা `process.env.CLAUDE_MODEL` ব্যবহার করছি।
+মানে environment variable থেকে model নেওয়ার চেষ্টা করছি।
+আর যদি সেটা set না থাকে, তাহলে fallback হিসেবে `"claude-sonnet-4-6"` ব্যবহার করছি।
 
-max_tokens: 1800,
+এরপর আমরা `max_tokens` লিখছি `1800`।
 
-মানে response-এর জন্য একটা reasonable limit set করে দিচ্ছি।
+এটা মূলত response কত বড় হতে পারবে তার একটা limit।
+এতে response খুব বড় হয়ে যাওয়ার সম্ভাবনা কমে এবং cost-ও control থাকে।
 
-এখন system prompt দিচ্ছি।
+তারপর আমরা `system` property লিখছি।
 
-system: buildSystemPrompt(),
+এখানে `buildSystemPrompt()` call করছি।
+এই promptটাই model-কে বলে দেয় তার role কী, boundary কী, আর কী করা যাবে বা করা যাবে না।
 
-এই promptটাই model-কে বলে দেবে —
-তার role কী, boundary কী, আর কী করা যাবে না।
-এবার user message পাঠাচ্ছি।
+এরপর আমরা `messages` property লিখছি।
 
-  messages: [
-    {
-      role: 'user',
-      content: [
-        {
-          type: 'text',
-          text: [
-            'Review the following pull request diff.',
-            'Return only findings supported by the diff.',
-            '',
-            limitedDiff
-          ].join('\n')
-        }
-      ]
-    }
-  ],
+এখানে আমরা user message পাঠাবো।
 
-এখানে একটা খুব important ব্যাপার আছে।
+এই message-এর ভেতরে `role` লিখছি `"user"`।
+তারপর `content` এর ভেতরে একটা `type: "text"` block লিখছি।
+
+এই text block-এর মধ্যে আমরা কয়েকটা line লিখছি —
+
+প্রথমে লিখছি:
+
+**“Review the following pull request diff.”**
+
+তারপর লিখছি:
+
+**“Return only findings supported by the diff.”**
+
+আর এরপর আমরা আসল `limitedDiff` পাঠাচ্ছি।
+
+এখানে একটা গুরুত্বপূর্ণ বিষয় আছে।
 
 আমরা diff-টাকে **instruction হিসেবে না**,
 বরং **data হিসেবে** পাঠাচ্ছি।
 
-মানে diff-এর ভেতরে কিছু লেখা থাকলেই model সেটা follow করবে না।
+মানে diff-এর মধ্যে যদি কোনো instruction লেখা থাকে,
+model সেটা blindly follow করবে না।
 
-এবার সবচেয়ে গুরুত্বপূর্ণ অংশ — output format, আমরা output format এর জন্য লিখছি - 
+এরপর আমরা সবচেয়ে গুরুত্বপূর্ণ অংশ লিখছি — `output_config`।
 
-  output_config: {
-    format: {
-      type: 'json_schema',
-      name: 'review_result',
-      schema: reviewJsonSchema
-    }
-  }
+এখানে আমরা বলছি response যেন free-form text না হয়ে
+একটা **structured JSON** হয়।
 
-এই অংশটা খুবই গুরুত্বপূর্ণ।
-কারণ আমরা plain text response চাই না।
-আমরা চাই model একটা **structured output** দিক, যেটা আমাদের defined schema follow করবে।
+এর জন্য `format` property-তে লিখছি:
 
-এটাই হচ্ছে সেই **contract-first approach**।
+* `type: "json_schema"`
+* `schema: reviewJsonSchema`
 
-এখন response থেকে raw text বের করবো, তার জন্য লিখি - 
+মানে model-এর response আমাদের define করা schema অনুযায়ী আসতে হবে।
 
-const raw = getTextContent(
-    message.content as Array<{ type: string; text?: string }>,
-);
+এটাই মূলত **contract-based output**।
 
-মানে Claude যেটা return করেছে, সেখান থেকে usable text বের করে নিচ্ছি।
+সহজ করে বললে, আমরা model-কে বলছি —
+তুমি যেকোনোভাবে text লিখে দিও না।
 
-এখন সেটা parse করবো।
+---
+
+এখন response থেকে usable text বের করতে হবে।
+কারণ Claude response হিসেবে সবসময় শুধু plain text দেয় না, অনেক সময় সেটা বিভিন্ন content block আকারে দেয়। তাই এখন আমরা একটা helper function লিখছি।
+
+function getTextContent(content: unknown): string
+
+Claude API response এ plain string হিসেবে দেয় না। বরং `content` নামে কয়েকটা block-এর array আকারে দেয়।
+
+তাই এই function-এর কাজ হলো সেই block গুলো থেকে **usable text safely বের করে আনা**।
+
+প্রথমে আমরা check করছি `content` আসলে array কিনা।
+
+না হলে safe side-এ empty string return করছি।
+
+তারপর আমরা সব content block map করে ঘুরে দেখছি।
+
+এখন প্রতিটা item-এর ক্ষেত্রে আমরা আগে নিশ্চিত হচ্ছি যে সেটা সত্যিই একটা object কিনা, এবং তার ভেতরে `type` আর `text` নামে property আছে কিনা। তারপর আমরা check করছি `type` আসলেই `"text"` কিনা এবং `text` সত্যি string কিনা।
+
+যদি এই সব শর্ত ঠিক থাকে, তাহলে আমরা শুধু সেই `text` অংশটা নিয়ে নিচ্ছি। আর যদি কোনো item এই শর্তগুলো পূরণ না করে, তাহলে সেটাকে ignore করে দিচ্ছি।
+
+শেষে সব text block একসাথে join করে একটা final string বানিয়ে দিচ্ছি।
+
+এখন আমরা getTextContent বানিয়ে ফেলেছি, আমরা এখন Claude এর Context টা আমাদের ফাংশোনের কাছে পাঠিয়ে দিবো। তাই এখন লিখি - 
+
+const raw = getTextContent(message.content);
+
+তারপর সেটাকে JSON parse করছি।
 
 const parsed = JSON.parse(raw);
 
 কিন্তু parse হলেই আমরা সেটা blindly trust করছি না।
 
-শেষ ধাপে আমরা schema validation চালাবো। তাই লিখি - 
+শেষ ধাপে আমরা schema validation চালাচ্ছি।
 
 return reviewSchema.parse(parsed);
 
-মানে response-টা আমাদের expected shape-এর সাথে match করলে তবেই সেটা accept করবো।
+মানে response যদি আমাদের expected shape-এর সাথে match করে
+তবেই সেটা accept হবে।
+----
 
-না হলে error হবে।
-
-এই file-টাই আসলে project-এর **heart**।
-
-কারণ এখানেই review request যাচ্ছে,
-response ফিরে আসছে,
-আর validation হচ্ছে।
-
-এখন আমরা test করার জন্য একটা **ছোট কিন্তু বাস্তবসম্মত diff** বানাবো।
+এখন আমরা অনেক কিছু কোড লিখলাম, এবার আমাদের টেস্ট করার পালা। test করার জন্য একটা **ছোট কিন্তু বাস্তবসম্মত diff** বানাবো।
 
 তার জন্য `fixtures/pr.diff` নামে একটা ফাইল বানাচ্ছি।
 
 এবং সেখানে এই diff- পেস্ট করছি।
 
-diff
 diff --git a/src/db.ts b/src/db.ts
 index 1111111..2222222 100644
 --- a/src/db.ts
@@ -781,7 +1018,6 @@ index 1111111..2222222 100644
 
 প্রথম জিনিসটা হলো —
 আগে query-টা parameterized ছিল, কিন্তু এখন সেটা string interpolation দিয়ে লেখা হয়েছে।
-
 
 return db.query(`SELECT * FROM users WHERE email = '${email}'`);
 
@@ -810,47 +1046,106 @@ diff-এর ভেতরের comment, string, বা text — এগুলো 
 * আর diff-এর text-এর ভেতরে **prompt injection-এর চেষ্টাও** থাকতে পারে
 
 এই কারণেই আমরা বারবার বলছি —
-
 **diff হচ্ছে data, authority না।**
 
+
+--- 
+এখন আমরা `package.json`-এ কিছু script যুক্ত করছি, যাতে project run করা সহজ হয়।
+আমরা `package.json` ফাইলটা open করছি।
+তারপর `scripts` section-এর মধ্যে লিখছি —
+
+`"dev": "tsx src/cli.ts",`
+
+মানে `npm run dev` চালালে `src/cli.ts` ফাইলটা run হবে।
+এরপর লিখছি —
+
+`"build": "tsup src/cli.ts src/github.ts --format esm,cjs --dts",`
+
+এটার কাজ হচ্ছে project build করা, যেখানে CLI আর GitHub script দুটোই compile হবে।
+
+--- 
 
 এখন সবকিছু save করে আমরা CLI-টা একবার run করে দেখি।
 
 টার্মিনালে লিখছি —
 
-bash
 npm run dev -- ./fixtures/pr.diff
-`
 
-এখন ideally আমরা terminal-এ একটা **verdict** দেখছি, সঙ্গে relevant **findings**-ও দেখছি।
+দেখুন, একটু সময় নিচ্ছে।
+মানে আমাদের reviewer এখন diff-টা পড়ছে, model-এ পাঠাচ্ছে, তারপর structured response নিয়ে আসছে।
 
-::Todo::এই জায়গায় আমি সাধারণত আশা করবো `fail` বা `warn` verdict আসবে।::TODO::
+এখন terminal-এ output চলে এসেছে।
 
-কারণ diff-এর ভেতরে যে SQL query change হয়েছে, সেখানে **SQL injection risk** detect হওয়ার কথা।
+প্রথমে আমরা দেখতে পাচ্ছি `Verdict: fail` এখানে `fail` আসাটা expected, কারণ diff-এর মধ্যে parameterized query সরিয়ে direct string interpolation ব্যবহার করা হয়েছে।
 
-আরেকটা জিনিসও এখানে খেয়াল করার মতো।
+মানে `email` value সরাসরি SQL query-এর মধ্যে ঢুকে যাচ্ছে।
+এটাই SQL injection-এর risk তৈরি করছে।
 
-diff-এর comment-এর মধ্যে যদিও instruction ঢোকানো হয়েছে,
-তবুও সেটা reviewer-কে control করতে পারবে পারছে না।
+তারপর নিচে প্রথম finding-এ আমরা সেটা clearভাবেই দেখতে পাচ্ছি।
 
-কারণ আমরা শুরু থেকেই prompt এমনভাবে design করেছি,
+এখানে title এসেছে —
+
+**SQL Injection via Template Literal String Interpolation**
+
+তার মানে reviewer ঠিকভাবেই detect করেছে যে query construction unsafe হয়ে গেছে।
+
+এর নিচে file path আর line number-ও দেখাচ্ছে —
+
+**src/db.ts:2**
+
+মানে issueটা ঠিক কোন file-এ আর কোন line-এর আশেপাশে আছে সেটাও আমরা পেয়ে যাচ্ছি।
+
+তারপর summary-তে explain করছে কেন এটা dangerous।
+
+আর evidence section-এ old query আর new query — দুইটাই দেখাচ্ছে।
+ফলে changeটা কোথায় হয়েছে সেটা চোখের সামনে পরিষ্কার দেখা যাচ্ছে।
+
+তারপর fix section-এও বলে দিচ্ছে কী করা উচিত।
+
+মানে আবার parameterized query-তে ফিরে যেতে বলছে।
+
+এখন দ্বিতীয় finding-এ আসি।
+
+এখানে আমরা আরেকটা interesting জিনিস দেখতে পাচ্ছি।
+
+Title এসেছে —
+
+**Prompt Injection Attempt in Diff Content**
+
+মানে diff-এর comment-এর মধ্যে যে instruction ঢোকানো হয়েছিল, reviewer সেটা detect করেছে।
+
+এবং সবচেয়ে important বিষয় হলো —
+ওই comment reviewer-কে control করতে পারেনি।
+
+কারণ আমরা prompt শুরু থেকেই এমনভাবে design করেছি,
 যাতে diff-কে **authority হিসেবে না**,
-বরং **data হিসেবে** treat করা হয়।
-এটাই আসলে আমাদের প্রথম বড় payoff।
+বরং **untrusted data হিসেবে** treat করা হয়।
 
-মানে, এখন আমাদের হাতে একটা **working AI reviewer** আছে,
-যেটা diff read করতে পারছে,
-schema-based output দিচ্ছে,
-আর local-এ runও করছে।
+এই জায়গাটাই খুব গুরুত্বপূর্ণ।
 
-কিন্তু এখানেই কাজ শেষ না।
+মানে reviewer শুধু security issue detect করছে না,
+prompt injection attempt-ও ignore করতে পারছে।
+
+তো এই run থেকে আমরা কী বুঝলাম?
+
+আমাদের reviewer এখন:
+
+* diff read করতে পারছে
+* real security issue detect করতে পারছে
+* prompt injection ignore করতে পারছে
+* আর local-এ ঠিকভাবে runও করছে
+
+এটাই আমাদের প্রথম milestone।
+
+কিন্তু এখানেই আসল কাজ শেষ না।
 
 কারণ production-এ আসল প্রশ্নটা শুধু এটা না যে —
+
 **“একবার কাজ করেছে কি না”**
 
 production-এ আসল প্রশ্নটা হলো —
 
-**“কোনো কারণে ভুল হলে, তখন কী হবে?”**
+**“কোনো কারণে ভুল হলে, তখন system কী করবে?”**
 
 ---
 
@@ -864,79 +1159,50 @@ production-এ আসল প্রশ্নটা হলো —
 মানে, বাইরে থেকে দেখে মনে হতে পারে সব ঠিক আছে,  
 কিন্তু আসলে review result reliable না-ও হতে পারে।
 
-এই কারণেই `review.ts`-এ আমরা parsing আর validation অংশটাকে `try/catch`-এর ভেতরে রাখবো।
+এই কারণেই `review.ts`-এ আমরা parsing আর validation অংশটাকে `try/catch` দিয়ে wrap করে দিচ্ছি। 
 
-প্রথমে `try` block-এর মধ্যে raw text বের করছি।
-
-
-  const raw = getTextContent(
-    message.content as Array<{ type: string; text?: string }>
-  );
-`
-
-এরপর সেই raw text-টা JSON হিসেবে parse করছি।
-
-
-const parsed = JSON.parse(raw);
-
-
-আর তারপর schema validation চালাচ্ছি।
-
-
-  return reviewSchema.parse(parsed);
-
-
-এখন যদি parse fail করে,
-বা schema validation fail করে,
+এখন যদি এর মধ্যে parse fail করে, বা schema validation fail করে,
 তাহলে আমরা এমন ভান করবো না যে সব ঠিক আছে।
 
-বরং আমরা একটা **safe fallback result** return করবো Catch block এ।
+এখন তাহলে catch block-এ গিয়ে safe fallback return করতে হবে আমাদের। 
 
+এখন আমরা একটা helper function লিখছি, যার নাম **`failClosedResult`**।
+এই functionটার কাজ হলো একটা **safe fallback result** তৈরি করা, যদি model response ঠিকভাবে parse না হয় বা schema validation fail করে। আমরা এই ফাংশন থেকে return করছি একটি Object blank object.
 
-  return {
-    verdict: 'warn',
-    summary:
-      'The review response could not be validated safely. Human review is required.',
-    findings: [
-      {
-        id: 'review_parse_failure',
+প্রথমে আমরা Object এর মধ্যে `verdict` দিচ্ছি `"warn"`। মানে system বলছে — review পুরোপুরি reliable না, তাই caution দরকার। এরপর `summary` property-তে একটা message দিচ্ছি, যেখানে বলা হচ্ছে "The review response could not be validated safely. Human review is required." তারপর আমরা `findings` নামে একটা array লিখছি। এখানে মূলত একটা finding রাখছি, যাতে বোঝা যায় ঠিক কী সমস্যা হয়েছে। এই finding-এর ভেতরে আমরা কয়েকটা property লিখছি, যাতে issueটা আরও specific হয়।
 
+প্রথমে `id` লিখছি `"review_parse_failure"` — যাতে বোঝা যায় এটা parsing বা validation failure সম্পর্কিত issue। তারপর `title` লিখছি **"Review output could not be validated"**, যাতে এক লাইনে বোঝা যায় কী সমস্যা হয়েছে। এরপর `severity` লিখছি `"medium"` — কারণ এটা সরাসরি security bug না, কিন্তু pipeline behaviour-এর জন্য গুরুত্বপূর্ণ warning। তারপর `category` লিখছি `"pipeline-safety"` — মানে সমস্যা কোডে না, বরং review pipeline-এর behaviour নিয়ে।
 
-এখানে `verdict` আমরা `warn` দিচ্ছি।
+এরপর `summary` property-তে লিখছি যে model response expected schema satisfy করেনি, তাই reviewer fail-closed behaviour দেখিয়েছে। `filePath` লিখছি `"N/A"` — কারণ এটা কোনো নির্দিষ্ট file-এর issue না। `line` লিখছি `0` — একই কারণে, এটা কোনো specific line-এর সাথে সম্পর্কিত না।
+
+এরপর `evidence` property-তে `String(error)` লিখছি, যাতে actual error messageটা log-এ দেখা যায়। সবশেষে `recommendation` property-তে লিখছি pipeline log check করতে এবং schema compatibility নিশ্চিত করে আবার run করতে।
+
+সহজ করে বললে, এই functionটা নিশ্চিত করে —
+যদি review process-এর মধ্যে কোনো সমস্যা হয়, তাহলে system crash না করে **safe warning result** return করবে এবং জানাবে যে human review দরকার।
+
+এখন আমরা মূলত catch block থেকে error টা রিসিভ করে লিখছি - 
+
+return failClosedResult(error);
 
 মানে system বলছে —
-review হয়েছে ঠিকই, কিন্তু resultটা safe ভাবে validate করা যায়নি।
 
-এবার finding-এর title আর severity দিচ্ছি।
+আমি response safely validate করতে পারিনি,
+তাই safe warning result return করছি।
 
-title: 'Review output could not be validated',
-severity: 'medium',
+এই ফাইলটাই আসলে পুরো reviewer-এর **core logic**।
 
-এরপর বাকি required field-গুলোও পূরণ করে দিচ্ছি।
-
-        category: 'pipeline-safety',
-        summary:
-          'The model response did not satisfy the expected schema, so the reviewer failed closed.',
-        filePath: 'N/A',
-        line: 0,
-        evidence: String(error),
-        recommendation:
-          'Inspect the pipeline logs and rerun after confirming schema compatibility.'
-      }
-    ]
-  };
-
-এখানে সবচেয়ে important লাইনটা হলো —
-
-**the reviewer failed closed**
-
-মানে, system risky situation-এ গিয়ে নিজেকে safe mode-এ নামিয়ে ফেলছে।
+কারণ এখানেই —
+* diff prepare হচ্ছে
+* Claude-এ request যাচ্ছে
+* response ফিরে আসছে
+* parse হচ্ছে
+* validate হচ্ছে
+* আর দরকার হলে fail-closed fallback return হচ্ছে।
 
 এটা খুব important mindset।
 
 কারণ production system-এ অনেক সময় crash করার চেয়ে,
-বা ভুল output-কে valid ধরে নেওয়ার চেয়ে,
-একটা **clear warning** দেওয়া অনেক ভালো।
+বা ভুল output-কে valid ধরে নেওয়ার চেয়ে, একটা **clear warning** দেওয়া অনেক ভালো।
 
 সহজ করে বললে, এই change-এর পর আমাদের reviewer বলছে —
 
@@ -967,14 +1233,11 @@ severity: 'medium',
 
 তাই `src/cli.ts`-এ review call-এর আগে এই লাইনে লিখছি —
 
-
 console.log(`Diff length: ${diff.length} characters`);
-`
 
 এটা আমাদের quick একটা idea দেবে, diff কত বড়।
 
 তারপর আরেকটা line লিখছি —
-
 
 console.log("Reviewing only the proposed changes, not the whole repository...");
 
@@ -990,17 +1253,35 @@ console.log("Reviewing only the proposed changes, not the whole repository...");
 মানে, আমরা context **budget** করি।
 হাতের সামনে যা পাই, সব model-এর দিকে ছুঁড়ে দিই না।
 
+এখন আমরা একটু রান করি - 
+
+npm run -- ./fixtures/pr.diff
+
+প্রথমে আমরা দেখতে পাচ্ছি diff-এর size দেখাচ্ছে —
+
+Diff length: 561 characters
+
+তারপর বলে দিচ্ছে —
+
+Reviewing only the proposed changes, not the whole repository...
+
+মানে আমরা পুরো repository পাঠাইনি,
+শুধু যেটুকু change হয়েছে সেটুকুই review করেছি।
+
+এখন পর্যন্ত সব কিছু পার্ফেক্ট আছে আমাদের তাই না। 
+
 ---
 
-### Step 10: GitHub comment format করা
+এখন আমরা reviewer-টাকে আরেক ধাপ সামনে নিয়ে যাচ্ছি।
 
-এখন আমরা project-এ **আসল workflow value** যোগ করবো।
-মানে, reviewer শুধু local terminal-এ result দেখাবে না —  
-এখন সে চাইলে **PR-এ comment-ও পোস্ট করতে পারবে**।
-এই কাজটার জন্য আমি একটা নতুন ফাইল বানাচ্ছি —
+এখন পর্যন্ত এটা local-এ run করে result দেখাচ্ছিল।
+কিন্তু বাস্তবে আমরা চাই, PR এলে এই reviewer নিজে থেকেই কাজ করুক এবং দরকার হলে **সরাসরি pull request-এ comment পোস্ট করুক**।
+
+এই integration-এর জন্য আমি একটা নতুন ফাইল বানাচ্ছি —
+
 `github.ts`
-প্রথমে দরকারি module import করে নিচ্ছি।
 
+প্রথমে দরকারি module import করে নিচ্ছি।
 
 import process from "node:process";
 import { Octokit } from "@octokit/rest";
@@ -1015,131 +1296,212 @@ import { Octokit } from "@octokit/rest";
 import { reviewPullRequestDiff } from "./review";
 
 
-এখন আমি একটা ছোট helper function লিখবো,
+এখন আমরা একটা ছোট helper function বানাবো,
 যেটা review result-টাকে **Markdown format**-এ convert করবে।
 
-কারণ GitHub comment তো plain object বুঝবে না —
-ওখানে nicely formatted text পাঠাতে হবে তাই না। আমি লিখছি - 
+এখন আমরা একটা helper function লিখছি, যার নাম **`toMarkdown`**।
 
-function toMarkdown(result: Awaited<ReturnType<typeof reviewPullRequestDiff>>) {}
+এটার দরকার হচ্ছে একটা খুব simple কারণে।
 
-এর মধ্যে লিখি - const lines = [
-    '## Secure AI PR Review'] 
+আমাদের reviewer যে result return করছে, সেটা তো একটা JavaScript object।
+কিন্তু GitHub comment plain object বুঝবে না, তাই না?
 
-এখানে আমরা comment-এর heading দিয়ে শুরু করছি।
+ওখানে আমাদের result-টা এমনভাবে পাঠাতে হবে, যাতে সেটা **সুন্দর করে formatted text** হিসেবে দেখা যায়।
+মানে PR-এর নিচে comment আকারে পড়তে সুবিধা হয়।
 
-এবার verdict আর summary যোগ করছি।
+এই কারণেই আমরা `toMarkdown` function লিখছি।
 
-    `**Verdict:** ${result.verdict.toUpperCase()}`,
-    result.summary,
-    ''
+এই function-এর কাজ খুব সোজা —
+review result-টা নেবে, আর সেটাকে একটা **markdown string**-এ convert করে দিবে।
 
-মানে comment-এর শুরুতেই overall resultটা দেখা যাবে।
+এখন আমরা full markdown body বানানো শুরু করছি।
+এর জন্য আমরা `lines` নামে একটা array নিচ্ছি।
+এই array-র মধ্যে আমরা comment-এর line গুলো এক এক করে জমা করবো।
+প্রথমেই heading লিখছি:
+**Secure AI PR Review**
+তারপর verdict লিখছি।
+এখানে `result.verdict.toUpperCase()` ব্যবহার করছি, যাতে verdictটা uppercase-এ দেখা যায়।
+মানে `fail`, `warn`, `pass` এগুলো `FAIL`, `WARN`, `PASS` হয়ে যায়।
+এতে PR comment scan করলে resultটা চোখে দ্রুত পড়বে।
+এরপর আমরা `result.summary` যোগ করছি,
 
-এখন findings থাকলে সেগুলো one by one bullet আকারে যোগ করবো।
+যাতে overall review-এর high-level explanationটা শুরুতেই দেখা যায়।
 
-তার জন্য আমারা একটি loop চালাচ্ছি  - 
+এখন findings array-তে loop চালাচ্ছি।
 
-for (const finding of result.findings) {}
+মানে এক একটা finding এক একবার করে নিচ্ছি।
 
-loop এর মধ্যে লিখি - 
+প্রতিটা finding-এর জন্য প্রথমে আমরা একটা main bullet line বানাচ্ছি।
 
-lines.push(
-  `- **${finding.severity.toUpperCase()}** \`${finding.filePath}:${finding.line}\` - ${finding.title}`
-);
+ওই line-এ আমরা দেখাচ্ছি:
 
-এখানে প্রতিটা finding-এর জন্য আমরা severity, file path, line number, আর title দেখাচ্ছি।
+* severity
+* file path
+* line number
+* title
 
-এরপর নিচে একটু extra detail যোগ করে দেয়, যাতে আমরা বুঝতে পারি জিনিস গুলো - 
+মানে, এক লাইনে issueটার সবচেয়ে জরুরি তথ্যগুলো দেখা যাচ্ছে।
 
-    lines.push(`  - ${finding.summary}`);
-    lines.push(`  - Evidence: ${finding.evidence}`);
-    lines.push(`  - Recommendation: ${finding.recommendation}`);
-    lines.push('');
+উদাহরণ হিসেবে ভাবতে পারেন —
+কোন severity-র issue, কোন file-এ, কোন line-এর আশেপাশে, আর issueটার short title কী।
 
-মানে প্রতিটা finding-এর নিচে summary, evidence, আর recommendation-ও থাকবে।
+এতে PR comment পড়ার সময় কেউ খুব দ্রুত scan করতে পারবে।
 
-সবশেষে সব line একসাথে join করে markdown হিসেবে return করছি।
+এরপর ওই finding-এর নিচে extra detail যোগ করছি।
 
-  return lines.join('\n');
+প্রথমে `summary` যোগ করছি,
+যাতে issueটা একটু explain করা যায়।
+
+তারপর `Evidence` যোগ করছি,
+মানে reviewer ঠিক কী দেখে এই findingটা detect করেছে সেটা বোঝানো হচ্ছে।
+
+এরপর `Recommendation` যোগ করছি,
+মানে কী fix করা উচিত বা next step কী হতে পারে সেটা বলা হচ্ছে।
+
+আর শেষে একটা খালি line রাখছি,
+যাতে finding গুলোর মধ্যে spacing থাকে এবং পুরো commentটা crowded না লাগে।
+
+সব finding শেষ হয়ে গেলে, আমরা সব line একসাথে join করে দিচ্ছি।
+
+মানে `lines` array-এর সব item একসাথে newline দিয়ে জোড়া লাগিয়ে একটা final markdown string বানিয়ে ফেলছি।
+
+এই final string-টাই পরে GitHub PR comment হিসেবে পোস্ট করা হবে।
+
+মানে machine-friendly output-কে আমরা এখানে human-friendly comment-এ convert করছি আর কি।
+
+---
 
 এখন GitHub-এর জন্য main entry point লিখছি।
 
+এখন আমরা **GitHub entry point** লিখছি।
+মানে GitHub Action যখন run হবে, তখন এই function থেকেই পুরো workflow শুরু হবে।
 
-async function main() {
+তাই আমরা লিখছি —
 
+`async function main() {}`
 
-প্রথমে environment variable থেকে দরকারি data গুলো বের করে নিচ্ছি।
+---
 
+এখন প্রথমেই environment variable থেকে দরকারি data গুলো বের করে নিচ্ছি।
 
-const token = process.env.GITHUB_TOKEN;
-const repo = process.env.GITHUB_REPOSITORY;
-const prNumber = Number(process.env.PR_NUMBER);
-const diff = process.env.PR_DIFF;
+আমরা লিখছি —
 
+* `const token = process.env.GITHUB_TOKEN;`
+* `const repo = process.env.GITHUB_REPOSITORY;`
+* `const prNumber = Number(process.env.PR_NUMBER);`
+* `const diff = process.env.PR_DIFF;`
 
-এখানে আমাদের চারটা জিনিস দরকার —
+এখানে আমাদের চারটা জিনিস দরকার — GitHub token, repository name, PR number, আর PR diff।
 
-* GitHub token
-* repository name
-* PR number
-* আর PR diff
+এখানে একটা গুরুত্বপূর্ণ বিষয় আছে।
+`GITHUB_TOKEN` আমাদের আলাদা করে দিতে হবে না।
 
-এবার আগে থেকে validate করে নিব আমারা,
-যাতে কিছু missing থাকলে শুরুতেই error পাওয়া যায়। তো লিখি - 
+কারণ যখন এই script **GitHub Actions-এর মধ্যে run হবে**, তখন GitHub নিজেই automatically `GITHUB_TOKEN` environment variable provide করে দেয়।
 
-if (!token || !repo || !prNumber || !diff) {
-    throw new Error("Missing required GitHub environment variables.");
-}
+---
 
-এখন GitHub API client বানাবো।
+এখন আমরা আগে থেকেই validate করে নিচ্ছি।
 
-const octokit = new Octokit({ auth: token });
+মানে যদি কোনো environment variable missing থাকে, তাহলে সেটা শুরুতেই ধরা পড়ে যাবে।
 
-তারপর `owner/repo` string-টা split করে owner আর repo name আলাদা করে নিচ্ছি।
+এখন আমরা একটা check লিখছি।
 
-const [owner, repoName] = repo.split("/");
+এখানে আমরা দেখছি দরকারি environment variable গুলো সব আছে কিনা।
 
-এখন actual review run করবো।
+মানে token, repo, prNumber, আর diff — এর মধ্যে যদি কোনোটা missing থাকে, তাহলে আমরা সরাসরি একটা error throw করছি।
 
-const result = await reviewPullRequestDiff({
-    diff,
-    source: "github-action",
-});
+এর ফলে program পরে গিয়ে অদ্ভুতভাবে fail না করে, শুরুতেই পরিষ্কারভাবে জানিয়ে দেয় যে required GitHub environment variables পাওয়া যায়নি।
 
-মানে, এবার source local CLI না —
-আমরা পরিষ্কার করে বলে দিচ্ছি এটা GitHub Action থেকে এসেছে।
+---
 
-এরপর review result-টাকে markdown-এ convert করবো। 
+এখন `GITHUB_REPOSITORY` সাধারণত `owner/repo` format-এ থাকে।
 
-const body = toMarkdown(result);
+তাই আমরা এটাকে split করে owner আর repo name আলাদা করে নিচ্ছি।
 
-এখন সেই markdown comment-টা GitHub PR-এ post করে দিচ্ছি।
+আমরা লিখছি —
 
-await octokit.issues.createComment({
-  owner,
-  repo: repoName,
-  issue_number: prNumber,
-  body
-});
-}
+`const [owner, repoName] = repo.split("/");`
 
-এখানে GitHub Issues API use করা হচ্ছে, কারণ PR comment technically issue comment হিসেবেই handle করা হয়।
+তারপর আরেকটা ছোট check দিচ্ছি।
 
-সবশেষে একটা normal top-level catch রাখছি।
+কারণ repository string যদি ঠিক format-এ না থাকে, তাহলে পরে API call fail করতে পারে।
 
+তাই আমরা লিখছি —
 
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});
+`if (!owner || !repoName) { throw new Error("GITHUB_REPOSITORY must be in owner/repo format."); }`
 
+---
 
-আর একটা জিনিস এখানে খেয়াল করার মতো।
-এই file-টা আমি ইচ্ছে করেই **ছোট আর focused** রেখেছি।
-কারণ আমাদের goal এখানে giant GitHub bot বানানো না।
-আমাদের goal হলো reviewer-টাকে **readable, maintainable, আর low-risk** রাখা ঠিক আছে। 
+এখন GitHub API client বানাচ্ছি।
 
+আমরা লিখছি —
+
+`const octokit = new Octokit({ auth: token });`
+
+এখানে আমরা `GITHUB_TOKEN` ব্যবহার করে GitHub API authenticate করছি।
+
+---
+
+এখন actual review run করছি।
+
+আমরা লিখছি —
+
+`const result = await reviewPullRequestDiff();`
+
+এখানে আমরা একটা object pass করছি।
+
+এই object-এর মধ্যে `diff` দিচ্ছি, আর `source` হিসেবে `"github-action"` লিখছি।
+
+এখানে একটা ছোট পার্থক্য আছে।
+
+local CLI-তে আমরা source হিসেবে `"local-cli"` ব্যবহার করেছিলাম।
+কিন্তু এখানে আমরা পরিষ্কার করে বলছি — এটা `"github-action"` থেকে এসেছে।
+
+---
+
+এখন review result-টাকে markdown-এ convert করছি।
+
+আমরা লিখছি —
+
+`const body = toMarkdown();`
+এবং result কে পাস করে দিচ্ছি। 
+
+কারণ GitHub comment plain object বুঝবে না।
+ওখানে formatted markdown text পাঠাতে হয়।
+
+---
+
+এখন সেই markdown comment-টা PR-এ post করে দিচ্ছি।
+
+আমরা লিখছি —
+
+`await octokit.issues.createComment();`
+
+এখানে আমরা একটা object pass করছি।
+
+প্রথমে `owner` দিচ্ছি — repository-এর owner বা organization।
+
+তারপর `repo: repoName` — repository-এর নাম।
+
+এরপর `issue_number: prNumber` — কারণ GitHub-এ pull request আসলে internally **issue হিসেবেই handle করা হয়**।
+
+সবশেষে `body` দিচ্ছি — এটাই সেই markdown text, যেটা আমরা `toMarkdown(result)` দিয়ে বানিয়েছি।
+
+এই `body`-টাই PR-এর নিচে **comment হিসেবে পোস্ট হবে**।
+
+---
+
+সবশেষে একটা top-level catch রাখছি।
+
+আমরা লিখছি —
+
+`main().catch((error) => { console.error(error); process.exit(1); });`
+
+এর কাজ খুব simple।
+
+যদি `main` function-এর ভেতরে কোনো error হয়, তাহলে সেটা console-এ print হবে এবং process cleanভাবে exit করবে।
+
+এখনআমাদের goal হলো reviewer-টাকে **readable, maintainable, আর low-risk** রাখা ঠিক আছে। 
 
 এখন আমরা project-এর একটা গুরুত্বপূর্ণ কাজ করবো — **GitHub Actions security**
 
@@ -1158,123 +1520,315 @@ PR review-এর ক্ষেত্রে সবচেয়ে important কথা
 আমরা এমন workflow চাই না, যেটা untrusted code checkout করবে,  
 তারপর অকারণে বেশি permission পেয়ে যাবে।
 
-এই tutorial-এ তাই আমি workflow-টাকে যতটা সম্ভব **read-only** রাখছি।  
-মানে, যতটুকু access না দিলে কাজই হবে না, ঠিক ততটুকুই থাকবে।
+এখন আমরা workflow file-টা লিখছি।
+এই tutorial-এ আমি workflow-টাকে যতটা সম্ভব **read-only** রাখছি।
+
+মানে, reviewer-এর কাজ যেটুকু — ঠিক ততটুকু access-ই থাকবে।
+অপ্রয়োজনীয় extra permission রাখছি না।
 
 এই কাজটার জন্য আমি একটা workflow file বানাচ্ছি —
 
 `.github/workflows/secure-review.yml`
 
+---
+
 প্রথমে workflow-এর নাম দিচ্ছি।
 
-name: Secure AI PR Review`
+আমরা লিখছি —
+
+`name: Secure AI PR Review`
+
+মানে GitHub Actions tab-এ এই workflow এই নামেই দেখা যাবে।
+
+---
 
 এখন trigger define করছি।
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+আমরা লিখছি —
 
-মানে, PR open হলে, update হলে, বা আবার reopen হলে —
+`on:
+  pull_request:
+    types: [opened, synchronize, reopened]`
+
+মানে, PR open হলে, update হলে, বা reopen হলে —
 এই workflow run করবে।
+
+---
 
 এবার permissions define করছি।
 
-permissions:
-  contents: read
-  pull-requests: write
+আমরা লিখছি —
 
-এই অংশটা খুবই important।
+`permissions:
+  contents: read
+  pull-requests: write`
+
+এই অংশটা খুব important।
+
 এখানে `contents: read` মানে repository content শুধু read করা যাবে।
 আর `pull-requests: write` দিচ্ছি, কারণ reviewer-কে PR-এ comment পোস্ট করতে হবে।
 
-মানে, broad default permission না দিয়ে
-আমরা **minimum required permission** দিচ্ছি।
+মানে broad default permission না দিয়ে
+আমরা **minimum required permission** রাখছি।
+
+---
 
 এবার job define করছি।
 
-jobs:
+আমরা লিখছি —
+
+`jobs:
   review:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest`
 
 মানে এই job Ubuntu runner-এ run করবে।
 
-এখন আমাদের environment variable গুলো set করছি।
+---
 
-env:
-  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+এখন environment variable গুলো set করছি।
+
+আমরা লিখছি —
+
+`env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' && secrets.ANTHROPIC_API_KEY || vars.ANTHROPIC_API_KEY }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REPOSITORY: ${{ github.repository }}
-  PR_NUMBER: ${{ github.event.pull_request.number }}
+  PR_NUMBER: ${{ github.event.pull_request.number }}`
 
-এখানে Claude API key, GitHub token, repository name, আর PR number pass করে দিচ্ছি।
+এখানে কয়েকটা গুরুত্বপূর্ণ জিনিস হচ্ছে।
+
+`ANTHROPIC_API_KEY`-এর জন্য আমরা আগে `secrets.ANTHROPIC_API_KEY` check করছি।
+যদি সেটা থাকে, তাহলে সেটাই use হবে।
+
+আর যদি secret-এ না থাকে, তাহলে fallback হিসেবে `vars.ANTHROPIC_API_KEY` use হবে।
+
+মানে secret-এ রাখলে ভালো,
+কিন্তু দরকার হলে repository variable থেকেও নেওয়া যাবে।
+
+`GITHUB_TOKEN` GitHub নিজেই provide করে।
+
+`GITHUB_REPOSITORY` থেকে repository-র full name আসবে।
+আর `PR_NUMBER` pull request number থেকে আসবে।
+
+---
 
 এবার steps লিখছি।
 
 প্রথমে checkout করছি।
 
-steps:
-  - name: Checkout base workflow repo
-    uses: actions/checkout@v4
+আমরা লিখছি —
 
-তারপর Node.js setup করছি।
+`- name: Checkout base workflow repo
+  uses: actions/checkout@v4`
 
-  - name: Setup Node
-    uses: actions/setup-node@v4
-    with:
-      node-version: 24
+মানে workflow run হওয়ার সময় repository-র code runner-এ নিয়ে আসা হচ্ছে।
 
-এখন project-এর dependency install করছি।
+---
 
-  - name: Install dependencies
-    run: npm ci
+এবার `pnpm` setup করছি।
 
-এরপর আমরা একটা খুব important কাজ করবো এখন।
+আমরা লিখছি —
 
-আমরা PR diff **GitHub API দিয়ে fetch** করবো।
+`- name: Setup pnpm
+  uses: pnpm/action-setup@v4
+  with:
+    version: 10`
 
-  - name: Fetch PR diff
-    id: diff
-    run: |
-      curl -L \
-        -H "Authorization: Bearer $GITHUB_TOKEN" \
-        -H "Accept: application/vnd.github.v3.diff" \
-        "${{ github.event.pull_request.url }}" \
-        > pr.diff
+কারণ এই project-এ আমরা `pnpm` use করছি।
 
-এখানে ideaটা হলো —
+---
+
+এরপর Node setup করছি।
+
+আমরা লিখছি —
+
+`- name: Setup Node
+  uses: actions/setup-node@v4
+  with:
+    node-version: 24
+    cache: pnpm`
+
+এখানে Node 24 use করছি।
+আর `cache: pnpm` দেওয়ার কারণে dependency install কিছুটা faster হবে।
+
+---
+
+এখন dependency install করছি।
+
+আমরা লিখছি —
+
+`- name: Install dependencies
+  run: pnpm install --frozen-lockfile`
+
+এখানে `--frozen-lockfile` ব্যবহার করছি,
+যাতে lockfile অনুযায়ীই exact dependency install হয়।
+
+মানে CI-তে dependency version drift হওয়ার chance কমে যায়।
+
+---
+
+এবার একটা খুব important validation step দিচ্ছি।
+
+আমরা লিখছি —
+
+- name: Validate required secrets/variables
+  run: |
+    if [ -z "${ANTHROPIC_API_KEY}" ]; then
+      echo "::error::ANTHROPIC_API_KEY is missing. Add it in Settings -> Secrets and variables -> Actions -> Secrets (recommended) or Repository variables."
+      exit 1
+    fi
+
+এখানে আমরা মূলত একটা **simple validation** করছি।
+
+প্রথমে check করছি `ANTHROPIC_API_KEY` empty কিনা।
+
+যদি API key না থাকে, তাহলে আমরা একটা clear error message দেখাচ্ছি —
+যাতে বোঝা যায় `ANTHROPIC_API_KEY` সেট করা হয়নি এবং কোথায় গিয়ে সেটা add করতে হবে।
+
+এরপর `exit 1` দিয়ে workflow stop করে দিচ্ছি।
+
+মানে, API key না থাকলে reviewer run করার আগেই workflow cleanভাবে fail করবে।
+
+
+এখানে আমরা check করছি `ANTHROPIC_API_KEY` আছে কিনা।
+
+যদি না থাকে, তাহলে workflow শুরুতেই clear error দেখাবে।
+
+মানে পরে গিয়ে confusing failure না হয়ে
+এখানেই পরিষ্কারভাবে বোঝা যাবে কী missing।
+
+---
+
+এরপর আমরা PR diff fetch করছি।
+
+আমরা লিখছি —
+
+`- name: Fetch PR diff
+  run: |
+    curl -L \
+      -H "Authorization: Bearer $GITHUB_TOKEN" \
+      -H "Accept: application/vnd.github.v3.diff" \
+      "${{ github.event.pull_request.url }}" \       > pr.diff`
+
+এখানে ideaটা খুব important।
+
 আমরা directly PR-controlled code run করছি না।
+বরং GitHub API থেকে **diff text** এনে সেটা review করছি।
 
-বরং GitHub API থেকে diff text এনে সেটা review করছি।
+এটা safer pattern।
 
-এটা অনেক safer pattern।
+---
 
 এখন সেই diff-টা environment variable হিসেবে export করছি,
 যাতে পরে script সহজে use করতে পারে।
-  - name: Export diff
-    run: |
-      {
-        echo "PR_DIFF<<EOF"
-        cat pr.diff
-        echo "EOF"
-      } >> "$GITHUB_ENV"
+
+আমরা লিখছি —
+
+`- name: Export diff
+  run: |
+    {
+      echo "PR_DIFF<<EOF"
+      cat pr.diff
+      echo "EOF"
+    } >> "$GITHUB_ENV"`
+
+মানে `pr.diff`-এর content এখন `PR_DIFF` নামে environment variable-এ চলে যাচ্ছে।
+
+---
 
 সবশেষে reviewer run করছি।
 
-  - name: Run secure reviewer
-    run: npx tsx src/github.ts
+আমরা লিখছি —
+
+`- name: Run secure reviewer
+  run: pnpm exec tsx src/github.ts`
+
+এখানে `github.ts` script run হচ্ছে,
+যেটা diff read করবে, reviewer চালাবে, তারপর PR-এ comment পোস্ট করবে।
+
 
 এই workflow-টা আমি ইচ্ছে করেই simple রেখেছি।
+কিন্তু simple হলেও এখানে কয়েকটা important habit আছে —
 
-কিন্তু simple হলেও এখানে কয়েকটা habit খুব important:
+* least privilege
+* safer secret handling
+* PR diff API দিয়ে fetch করা
+* আর clear validation step রাখা
 
-* **least privilege**
-* **minimal data exposure**
-* আর **PR-controlled code অযথা execute না করা**
+মানে, secure automation শুধু model call না —
+workflow design-ও equally important।
 
-মানে, secure automation শুধু model call দিয়ে হয় না।
-এর চারপাশের workflow design-টাও equally important।
+---
 
+এখন আমরা GitHub-এ আমাদের সব code **commit করে push** করছি।
+এরপর আমরা GitHub-এ যাচ্ছি, আর উপরের **Actions** tab-এ click করছি।
+দেখুন, এখানে **“Secure AI PR Review”** নামে একটা action দেখা যাচ্ছে।
+এখন এই workflow ঠিকভাবে run করাতে হলে আমাদের দরকারি environment variable সেট করতে হবে।
+তার জন্য আমরা **Settings**-এ click করছি।
+তারপর একটু scroll করে **Secrets and variables**-এ যাচ্ছি।
+এরপর **Actions**-এ click করছি।
+এখানে আপনি চাইলে **Secrets** tab ব্যবহার করতে পারেন, চাইলে **Variables** tab-ও ব্যবহার করতে পারেন।
+যেহেতু API key sensitive জিনিস, তাই আমি **Secrets**-এ রাখছি।
+
+এখন আমরা **New repository variable**-এ click করছি,
+
+আমাদের environment variables গুলো দিয়ে দিচ্ছি। 
+
+মানে Claude API-র key-টা এখানে set করে দিচ্ছি, যাতে workflow run হওয়ার সময় reviewer সেটা use করতে পারে।
+
+এবার আমরা আবার আমাদের code editor-এ ফিরে আসি।
+
+এখানে আমরা একটা নতুন branch বানাচ্ছি।
+
+নাম দিচ্ছি —
+
+git checkout -b test-pr
+
+মানে এখন আমরা `test-pr` নামে একটা নতুন branch-এ চলে গেলাম।
+
+এখন এই branch-এ আমরা ছোট একটা change করবো,
+যাতে একটা test pull request খোলা যায়।
+
+উদাহরণ হিসেবে, ধরুন আমরা `README.md` ফাইলে একটা line add করলাম।
+
+এখন change করার পরে আমরা সেটা commit করছি।
+
+git add .
+git commit -m "Create test PR for secure reviewer"
+
+এরপর branch-টা GitHub-এ push করে দিচ্ছি।
+
+git push origin test-pr
+
+এখন আমরা আবার GitHub-এ ফিরে যাচ্ছি।
+
+দেখুন, GitHub উপরে একটা option দেখাচ্ছে —
+**Compare & pull request**
+
+আমরা সেখানে click করছি।
+
+এবার একটা নতুন **Pull Request** খুলছি।
+
+Pull Request তৈরি হওয়ার সাথে সাথেই GitHub আমাদের workflow trigger করা শুরু করেছে।
+
+দেখুন “Secure AI PR Review” workflowটা run হচ্ছে।
+
+দেখুন, step by step action execute হচ্ছে।
+
+প্রথমে repository checkout হলো,
+তারপর Node setup হলো,
+dependency install হলো,
+তারপর PR diff fetch হলো,
+এবং সবশেষে reviewer run হলো।
+
+মানে পুরো pipeline এখন কাজ করছে।
+
+এখন দেখুন একটু উপরে scroll করলে আমরা reviewer-এর **comment** দেখতে পাবো। এই দেখুন, Secure AI PR Review 
+
+মানে আমাদের script PR diff analyse করে
+result-টা GitHub comment হিসেবে পোস্ট করে দিয়েছে।
+
+---
 
 মানুষ যখন “AI code reviewer” বলে, বেশিরভাগ সময় তারা শুধু model call-টাই ভাবে। কিন্তু model পুরো সিস্টেমের মাত্র একটা অংশ। GitHub workflow-ও security boundary-এর অংশ।
 
@@ -1333,8 +1887,6 @@ return [
 
 ---
 
-### Step 14: বাস্তবসম্মত summary printer যোগ করা
-
 এখন `src/cli.ts`-এ আমি আরেকটা ছোট improvement করতে চাই।
 
 আমি চাই local output-এ শুধু human-readable summary না,  
@@ -1355,25 +1907,11 @@ console.log(JSON.stringify(result, null, 2));
 এখানে `JSON.stringify` ব্যবহার করার সময় `null, 2` দেওয়া হয়েছে,
 যাতে JSON সুন্দরভাবে **formatted** হয়ে print হয়।
 
-এখন CLI run করলে terminal-এ দুই ধরনের output দেখা যাবে —
+এখন আমারা চলুন আউটপুট দেখি। 
 
-1. Human-readable summary
-2. Structured JSON result
+দেখুন আমরা কিন্তু দেখতে পাচ্ছি - 
+Human-readable summary এবং সেই সাথে Structured JSON result
 
-এটা আসলে একটা দারুণ teaching moment।
-
-কারণ এখানেই পরিষ্কার বোঝা যায় **structured output কেন এত গুরুত্বপূর্ণ**।
-
-একই result দিয়ে —
-
-* CLI summary দেখানো যায়
-* GitHub PR comment বানানো যায়
-* আবার future-এ চাইলে **SARIF export** বা অন্য automation-ও করা যায়
-
-মানে, একটাই structured contract থেকে অনেক ধরনের workflow তৈরি করা সম্ভব।
----
-
-## 4. Polish & Best Practices
 
 এখন পর্যন্ত আমাদের সব কিছু একদম পার্ফেক্ট আছে তাই না। এখন আমি কিছু habit যোগ করতে চাই -
 
@@ -1397,7 +1935,6 @@ console.log(JSON.stringify(result, null, 2));
 
 অনেকেই “review my PR” থেকে এক লাফে “AI agent that edits code, rewrites files, posts fixes, maybe runs tools” টাইপ সিস্টেমে চলে যায়। কিন্তু সেটার risk level একদম আলাদা।
 
----
 
 চলুন শেষ করার আগে আমরা দ্রুত দেখে নেই, এই প্রজেক্টে আসলে আমরা কী বানালাম।
 
