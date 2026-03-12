@@ -7,7 +7,7 @@ export function buildSystemPrompt() {
     "Do not invent files, lines, or vulnerabilities.",
     "If there is not enough evidence, do not escalate the issue.",
     "Recommendations must be specific, minimal, and safe.",
-    // নিচের লাইন পরে যুক্ত করবো আমরা।
+   // We will add the following line later.
     "You are not allowed to execute tools, modify code, or request secrets.",
     // 
   ].join(" ");
